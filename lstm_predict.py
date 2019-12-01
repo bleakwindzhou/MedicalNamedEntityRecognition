@@ -18,23 +18,23 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 class LSTMNER:
     def __init__(self):
         cur = '/'.join(os.path.abspath(__file__).split('/')[:-1])
-        self.train_path = os.path.join(cur, 'data/train.txt')
-        self.vocab_path = os.path.join(cur, 'model/vocab.txt')
-        self.embedding_file = os.path.join(cur, 'model/token_vec_300.bin')
+        self.train_path = os.path.join(cur, 'data/0101_train.txt')
+        self.vocab_path = os.path.join(cur, 'model/0101_vocab.txt')
+        self.embedding_file = os.path.join(cur, 'model/0101_vec_300.bin')
         self.model_path = os.path.join(cur, 'model/tokenvec_bilstm2_crf_model_20.h5')
         self.word_dict = self.load_worddict()
         self.class_dict ={
                          'O':0,
-                         'TREATMENT-I': 1,
-                         'TREATMENT-B': 2,
-                         'BODY-B': 3,
-                         'BODY-I': 4,
-                         'SIGNS-I': 5,
-                         'SIGNS-B': 6,
-                         'CHECK-B': 7,
-                         'CHECK-I': 8,
-                         'DISEASE-I': 9,
-                         'DISEASE-B': 10
+                         'CPU型号-I': 1,
+                         'CPU型号-B': 2,
+                         '操作系统-B': 3,
+                         '操作系统-I': 4,
+                         '内存容量-I': 5,
+                         '内存容量-B': 6,
+                         '屏幕尺寸-B': 7,
+                         '屏幕尺寸-I': 8,
+                         '硬盘容量-I': 9,
+                         '硬盘容量-B': 10
                         }
         self.label_dict = {j:i for i,j in self.class_dict.items()}
         self.EMBEDDING_DIM = 300
@@ -49,7 +49,7 @@ class LSTMNER:
 
     '加载词表'
     def load_worddict(self):
-        vocabs = [line.strip() for line in open(self.vocab_path)]
+        vocabs = [line.decode().strip() for line in open(self.vocab_path,'rb')]
         word_dict = {wd: index for index, wd in enumerate(vocabs)}
         return word_dict
 
@@ -76,8 +76,9 @@ class LSTMNER:
     '''加载预训练词向量'''
     def load_pretrained_embedding(self):
         embeddings_dict = {}
-        with open(self.embedding_file, 'r') as f:
+        with open(self.embedding_file, 'rb') as f:
             for line in f:
+                line  = line.decode()
                 values = line.strip().split(' ')
                 if len(values) < 300:
                     continue

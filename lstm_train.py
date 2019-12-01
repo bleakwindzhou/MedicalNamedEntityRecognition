@@ -10,31 +10,33 @@ from keras.preprocessing.sequence import pad_sequences
 from keras.models import Sequential
 from keras.layers import Embedding, Bidirectional, LSTM, Dense, TimeDistributed, Dropout
 from keras_contrib.layers.crf import CRF
+from sklearn.model_selection import StratifiedKFold
 import matplotlib.pyplot as plt
 import os
-
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 class LSTMNER:
     def __init__(self):
         cur = '/'.join(os.path.abspath(__file__).split('/')[:-1])
-        self.train_path = os.path.join(cur, 'data/train.txt')
-        self.vocab_path = os.path.join(cur, 'model/vocab.txt')
-        self.embedding_file = os.path.join(cur, 'model/token_vec_300.bin')
-        self.model_path = os.path.join(cur, 'model/tokenvec_bilstm2_crf_model_20.h5')
+        self.train_path = os.path.join(cur, 'data/0101_train.txt')
+        self.vocab_path = os.path.join(cur, 'model/0101_vocab.txt')
+        self.embedding_file = os.path.join(cur, 'model/0101_vec_300.bin')
+        self.model_path = os.path.join(cur, 'model/0101_bilstm2_crf_model_20.h5')
         self.datas, self.word_dict = self.build_data()
         self.class_dict ={
                          'O':0,
-                         'TREATMENT-I': 1,
-                         'TREATMENT-B': 2,
-                         'BODY-B': 3,
-                         'BODY-I': 4,
-                         'SIGNS-I': 5,
-                         'SIGNS-B': 6,
-                         'CHECK-B': 7,
-                         'CHECK-I': 8,
-                         'DISEASE-I': 9,
-                         'DISEASE-B': 10
+                         'CPU型号-I': 1,
+                         'CPU型号-B': 2,
+                         '操作系统-B': 3,
+                         '操作系统-I': 4,
+                         '内存容量-I': 5,
+                         '内存容量-B': 6,
+                         '屏幕尺寸-B': 7,
+                         '屏幕尺寸-I': 8,
+                         '硬盘容量-I': 9,
+                         '硬盘容量-B': 10
                         }
         self.EMBEDDING_DIM = 300
         self.EPOCHS = 5
@@ -50,7 +52,7 @@ class LSTMNER:
         sample_x = []
         sample_y = []
         vocabs = {'UNK'}
-        for line in open(self.train_path):
+        for line in open(self.train_path,'r',encoding='utf-8'):
             line = line.rstrip().split('\t')
             if not line:
                 continue
@@ -61,7 +63,8 @@ class LSTMNER:
             sample_x.append(char)
             sample_y.append(cate)
             vocabs.add(char)
-            if char in ['。','?','!','！','？']:
+            m = 0
+            if char in ['。','?','!','！','？',';']:
                 datas.append([sample_x, sample_y])
                 sample_x = []
                 sample_y = []
@@ -80,13 +83,13 @@ class LSTMNER:
 
     '''保存字典文件'''
     def write_file(self, wordlist, filepath):
-        with open(filepath, 'w+') as f:
+        with open(filepath, 'w+',encoding='utf-8') as f:
             f.write('\n'.join(wordlist))
 
     '''加载预训练词向量'''
     def load_pretrained_embedding(self):
         embeddings_dict = {}
-        with open(self.embedding_file, 'r') as f:
+        with open(self.embedding_file, 'r',encoding='utf-8') as f:
             for line in f:
                 values = line.strip().split(' ')
                 if len(values) < 300:
@@ -132,9 +135,18 @@ class LSTMNER:
     def train_model(self):
         x_train, y_train = self.modify_data()
         model = self.tokenvec_bilstm2_crf_model()
-        history = model.fit(x_train[:], y_train[:], validation_split=0.2, batch_size=self.BATCH_SIZE, epochs=self.EPOCHS)
-        self.draw_train(history)
+        #model.load_weights(self.model_path)
+        kfold = StratifiedKFold(n_splits=self.EPOCHS, shuffle=True)
+        kfold_index = len(x_train)*['']
+        epoch_num = 0
+        for train,test in kfold.split(kfold_index, kfold_index):
+            epoch_num += 1
+            print(f'交叉训练第{epoch_num}轮。')
+            model.fit(x_train[train], y_train[train], validation_data=(x_train[test],y_train[test]), batch_size=self.BATCH_SIZE, epochs=1)
         model.save(self.model_path)
+        print('模型训练完毕！')
+        #self.draw_train(history)
+        #model.save(self.model_path)
         return model
 
     '''绘制训练曲线'''
